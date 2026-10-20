@@ -8,7 +8,7 @@ and records everything in a Parquet ledger.
 ```
 uv sync
 uv run loopbench prepare-data --raw ~/data/fineweb-edu/raw/sample/10BT/000_00000.parquet \
-    --name fineweb-edu-m0 --tokens 100000000
+    --name fineweb-edu-m1 --tokens 100000000                 # Velox plans, ~8s
 uv run loopbench run hypotheses/edu_score_ge_3.yaml          # Velox; --engine duckdb, --no-cache
 uv run loopbench parity hypotheses/edu_score_ge_3.yaml       # compare engines step by step
 uv run loopbench ledger "SELECT hypothesis, overall_diff, overall_ci_lo, overall_ci_hi FROM runs"
@@ -31,12 +31,20 @@ Data, artifacts and the ledger live under `~/data` (override with `LOOPBENCH_DAT
 Every plan node (prep op, pack, train, score) is cached in the artifact store by its hash,
 so re-running a hypothesis only recomputes what changed.
 
-## Dataset `fineweb-edu-m0`
+## Dataset `fineweb-edu-m1`
 
-~100M tokens hash-sampled from `HuggingFaceFW/fineweb-edu` `sample/10BT/000_00000.parquet`.
-Slice columns: `domain`, `tld`, `dump`, `lang_bucket`, `len_bucket`, `edu_bucket`; fixed held-out
-split = 2% of docs by `md5('heldout:' || id)`. Note FineWeb-Edu is already filtered to
-`score >= 2.5`, and one shard covers only 11 CC dumps.
+~100M tokens hash-sampled (md5 of id) from `HuggingFaceFW/fineweb-edu` `sample/10BT/000_00000.parquet`,
+built by Velox plans (`datasets.py`). Slice columns: `domain`, `tld`, `dump`, `lang_bucket`,
+`len_bucket`, `edu_bucket`. Held-out split (2%):
+
+* keyed by the normalised URL (scheme and `www.` stripped), so one page crawled in several
+  dumps never straddles the split (in m0, 3 of 7 heavily contaminated held-out docs were
+  exactly that);
+* held-out docs that share a MinHash LSH bucket with any train doc are moved to train.
+
+Remaining word 13-gram overlap is site templates (shared headers/boilerplate across pages
+of one site), not leaked documents. Note FineWeb-Edu is already filtered to `score >= 2.5`,
+and one shard covers only 11 CC dumps.
 
 ## Velox engine
 

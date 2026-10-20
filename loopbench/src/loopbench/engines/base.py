@@ -54,7 +54,9 @@ class Engine(ABC):
     name: str
 
     def source(self, docs_path: Path, split: str) -> Rel:
-        return Rel((str(docs_path),), f"split = '{split}'", drop=("split",))
+        """One split of a prepared dataset (a Parquet file or a directory of them)."""
+        files = Rel.of_dir(docs_path).files if Path(docs_path).is_dir() else (str(docs_path),)
+        return Rel(files, f"split = '{split}'", drop=("split",))
 
     @abstractmethod
     def run_op(self, op: str, params: dict, src: Rel, out_dir: Path) -> Rel:
