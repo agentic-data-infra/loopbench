@@ -40,7 +40,7 @@ COPY (
          WHEN score < 4.0 THEN 'c:3.5-4.0' ELSE 'd:>=4.0' END AS edu_bucket,
     CASE WHEN (md5_number('heldout:' || id) % 10000) < {heldout_bp} THEN 'heldout' ELSE 'train' END AS split
   FROM d
-) TO '{out}' (FORMAT parquet, COMPRESSION zstd, ROW_GROUP_SIZE 50000)
+) TO '{out}' (FORMAT parquet, COMPRESSION zstd, ROW_GROUP_SIZE 4096)
 """
 
 

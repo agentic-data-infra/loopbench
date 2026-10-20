@@ -8,9 +8,11 @@ dataset: fineweb-edu-m0
 baseline:
   prep:
     - {op: dedup, params: {key: text}}
+    - {op: minhash_dedup, params: {bands: 14, rows: 8, shingle: 5}}
 candidate:
   prep:
     - {op: dedup, params: {key: text}}
+    - {op: minhash_dedup, params: {bands: 14, rows: 8, shingle: 5}}
     - {op: filter, params: {where: "score >= 3.0"}}
 pack: {max_tokens: 2000000, seed: 0}
 train: {steps: 300, batch_size: 16, ctx: 256}
