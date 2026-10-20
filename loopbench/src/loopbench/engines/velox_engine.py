@@ -160,14 +160,20 @@ class VeloxEngine(Engine):
     def slice_bootstrap(self, long_path: Path, n_boot: int, ci: float) -> list[dict]:
         a = (1 - ci) / 2
         rel = Rel((str(long_path),))
-        w = ops.poisson_case(_hash01("concat(id, ':', cast(b as varchar))"))
+        w = ops.poisson_case(_hash01("concat(wid, ':', cast(b as varchar))"))
         point = self.execute(self.scan(rel) + [
             {"op": "agg", "keys": ["s", "v"], "aggs": ["count(1) AS n", "avg(base) AS base", "avg(cand) AS cand"]}])
-        boot = self.execute(self.scan(rel) + [
-            {"op": "project", "exprs": ["id", "s", "v", "cand - base AS d",
+        # Poisson weights once per (doc, replicate), joined to every (slice, value) row of the doc.
+        weights = self.scan(rel, ["id", "s"]) + [
+            {"op": "filter", "expr": "s = 'overall'"},
+            {"op": "project", "exprs": ["id AS wid",
                                         f"sequence(cast(0 as bigint), cast({n_boot - 1} as bigint)) AS bs"]},
-            {"op": "unnest", "replicate": ["id", "s", "v", "d"], "columns": ["bs"], "names": ["b"]},
-            {"op": "project", "exprs": ["s", "v", "b", "d", f"cast({w} as double) AS w"]},
+            {"op": "unnest", "replicate": ["wid"], "columns": ["bs"], "names": ["b"]},
+            {"op": "project", "exprs": ["wid", "b", f"cast({w} as double) AS w"]}]
+        boot = self.execute(self.scan(rel) + [
+            {"op": "project", "exprs": ["id", "s", "v", "cand - base AS d"]},
+            {"op": "join", "type": "inner", "left": ["id"], "right": ["wid"], "build": weights,
+             "output": ["s", "v", "b", "d", "w"]},
             {"op": "project", "exprs": ["s", "v", "b", "w * d AS wd", "w"]},  # aggregate args must be columns
             {"op": "agg", "keys": ["s", "v", "b"], "aggs": ["sum(wd) AS sw", "sum(w) AS ww"]},
             {"op": "project", "exprs": ["s", "v", "sw / ww AS m"]},

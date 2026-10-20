@@ -33,11 +33,13 @@ class Runner:
         self.tracer = tracer or Tracer()
         self.ledger = ledger or Ledger()
         self.node_rows: list[dict] = []
+        self._this_run: set[str] = set()  # nodes computed in this run are reused even with use_cache=False
 
     # -- artifact cache -------------------------------------------------------------------------
     def _cached(self, n: PlanNode) -> Path | None:
         d = artifact_dir(n.hash)
-        return d if self.use_cache and (d / DONE).exists() else None
+        reuse = self.use_cache or n.hash in self._this_run
+        return d if reuse and (d / DONE).exists() else None
 
     def _fresh_dir(self, n: PlanNode) -> Path:
         d = artifact_dir(n.hash)
@@ -47,6 +49,7 @@ class Runner:
         return d
 
     def _finish(self, n: PlanNode, d: Path, arm: str, seconds: float, stats: dict, cached: bool):
+        self._this_run.add(n.hash)
         if not cached:
             (d / "node.json").write_text(json.dumps({"op": n.op, "params": n.params, "code": n.code,
                                                      "input": n.input_hash, "stats": stats}))
