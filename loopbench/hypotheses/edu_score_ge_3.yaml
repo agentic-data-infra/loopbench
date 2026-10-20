@@ -1,0 +1,17 @@
+# M0 hand-written hypothesis. FineWeb-Edu is already filtered to score >= 2.5
+# (int_score >= 3), so the filter is on the raw score.
+name: edu_score_ge_3
+description: >
+  Training only on documents with edu score >= 3.0 lowers held-out loss on
+  high-edu slices; expect it to cost loss on low-edu slices.
+dataset: fineweb-edu-m0
+baseline:
+  prep:
+    - {op: dedup, params: {key: text}}
+candidate:
+  prep:
+    - {op: dedup, params: {key: text}}
+    - {op: filter, params: {where: "score >= 3.0"}}
+pack: {max_tokens: 2000000, seed: 0}
+train: {steps: 300, batch_size: 16, ctx: 256}
+examine: {heldout_docs: 2000, score_tokens: 256, bootstrap: 1000, ngram: 13}

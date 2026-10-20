@@ -1,0 +1,37 @@
+[project]
+name = "loopbench"
+version = "0.1.0"
+description = "Benchmark harness for the agentic data-discovery loop"
+authors = [
+    { name = "Patrick Stuedi", email = "pstuedi@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "duckdb>=1.5.6",
+    "huggingface-hub>=2.2.0",
+    "numpy>=2.4.6",
+    "pyarrow>=26.0.0",
+    "pyyaml>=6.0.3",
+    "tiktoken>=0.14.0",
+    "torch>=2.14.1",
+]
+
+[project.scripts]
+loopbench = "loopbench.cli:main"
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
