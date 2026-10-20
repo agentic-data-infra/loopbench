@@ -23,9 +23,10 @@ def _print_results(res: dict, tracer) -> None:
         if r["arm"] == "candidate" and r["slice"] == "edu_bucket":
             print(f"  step {r['step']} {r['op']:<7} {r['value']:<12} {r['tokens_in']:>12,} -> "
                   f"{r['tokens_out']:>12,}  removed {100 * r['tokens_removed_frac']:5.1f}%")
-    print("\n== contamination (held-out docs sharing any 13-gram with packed train stream) ==")
+    print("\n== contamination (held-out docs sharing any word 13-gram with the arm's full prepped pool) ==")
     for arm, c in res["contamination"].items():
-        print(f"  {arm:<9} {100 * (c > 0).mean():5.2f}% of docs, mean overlap {100 * c.mean():.3f}%")
+        print(f"  {arm:<9} {100 * (c > 0).mean():5.2f}% of docs, mean overlap {100 * c.mean():.3f}%, "
+              f"docs >50% overlap: {(c > 0.5).sum()}")
     print("\n== held-out loss, candidate - baseline (negative = candidate better), 95% bootstrap CI ==")
     print(f"  {'slice':<12}{'value':<26}{'n':>6}{'base':>8}{'cand':>8}{'diff':>9}   ci")
     for r in res["slices"]:
@@ -49,7 +50,9 @@ def main(argv: list[str] | None = None) -> None:
     r = sub.add_parser("run")
     r.add_argument("spec", type=Path)
     r.add_argument("--no-cache", action="store_true")
-    r.add_argument("--engine", default="duckdb")
+    r.add_argument("--engine", default="velox", choices=["velox", "duckdb"])
+    pp = sub.add_parser("parity", help="run every prep step of a spec on both engines and compare counts")
+    pp.add_argument("spec", type=Path)
     lq = sub.add_parser("ledger")
     lq.add_argument("sql")
     args = ap.parse_args(argv)
@@ -62,6 +65,10 @@ def main(argv: list[str] | None = None) -> None:
         runner = Runner(engine=args.engine, use_cache=not args.no_cache)
         res = runner.run(args.spec)
         _print_results(res, runner.tracer)
+    elif args.cmd == "parity":
+        from .parity import parity
+        ok = parity(args.spec)
+        raise SystemExit(0 if ok else 1)
     elif args.cmd == "ledger":
         from .ledger import Ledger
         Ledger().query(args.sql).show(max_width=200)

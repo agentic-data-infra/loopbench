@@ -28,6 +28,7 @@ OP_PARAMS: dict[str, dict[str, tuple[type | tuple, bool]]] = {
     "filter": {"where": (str, True)},
     "dedup": {"key": (str, True)},
     "mix": {"by": (str, True), "weights": (dict, True), "default_weight": ((int, float), False)},
+    "minhash_dedup": {"bands": (int, False), "rows": (int, False), "shingle": (int, False), "seed": (int, False)},
 }
 DEDUP_KEYS = ("text", "url")
 

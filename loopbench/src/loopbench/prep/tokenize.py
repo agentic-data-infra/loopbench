@@ -37,12 +37,11 @@ def cap_vocab(tokens: np.ndarray, vocab_cap: int) -> np.ndarray:
     return out
 
 
-def pack(engine, src: str, out_dir: Path, max_tokens: int, seed: int, batch_docs: int = 4096) -> dict:
+def pack(engine, src, out_dir: Path, max_tokens: int, seed: int) -> dict:
+    """Tokenize docs of ``src`` in md5(id || seed) order and concatenate until max_tokens."""
     out_dir.mkdir(parents=True, exist_ok=True)
-    order = f"md5(id || '{seed}')"
-    reader = engine.con.execute(f"SELECT id, text FROM {src} ORDER BY {order}").fetch_record_batch(batch_docs)
     chunks, ids, n = [], [], 0
-    for rb in reader:
+    for rb in engine.ordered_batches(src, ["id", "text"], seed):
         texts, bids = rb.column("text").to_pylist(), rb.column("id").to_pylist()
         for doc_id, toks in zip(bids, encode_batch(texts)):
             toks.append(EOT)
@@ -57,7 +56,8 @@ def pack(engine, src: str, out_dir: Path, max_tokens: int, seed: int, batch_docs
     tokens.tofile(out_dir / "tokens.bin")
     pq.write_table(pa.table({"id": [i for i, _ in ids], "n_tokens": [k for _, k in ids]}),
                    out_dir / "packed_docs.parquet")
-    meta = {"n_tokens": int(tokens.size), "n_docs": len(ids), "short": n < max_tokens}
+    meta = {"n_tokens": int(tokens.size), "n_docs": len(ids), "short": n < max_tokens,
+            "first_ids": [i for i, _ in ids[:5]]}
     (out_dir / "meta.json").write_text(json.dumps(meta))
     return meta
 

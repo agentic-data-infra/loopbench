@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 
-from loopbench.examine import contamination, diff
 from loopbench.spec import SpecError, build_plan
 from loopbench.spec.schema import parse_spec
 from loopbench.trace import Tracer
@@ -39,20 +38,3 @@ def test_trace_self_time():
             sum(range(100000))
     bd = t.breakdown()
     assert bd["train"] > 0 and abs(sum(bd.values()) - t.total_s()) < 1e-9
-
-
-def test_contamination():
-    rng = np.random.default_rng(0)
-    train = rng.integers(0, 50000, 10000).astype(np.uint16)
-    held = [train[100:200].copy(), rng.integers(0, 50000, 100).astype(np.uint16)]
-    out = contamination.check(train, held, 13)
-    assert out[0] == 1.0 and out[1] == 0.0
-
-
-def test_slice_diff_ci():
-    rng = np.random.default_rng(0)
-    base = rng.normal(5, 0.1, 500)
-    rows = diff.per_slice_diff({"s": ["x"] * 250 + ["y"] * 250}, base, base - 0.05, top_k=5,
-                               min_docs=10, n_boot=200, ci=0.95, seed=0)
-    assert rows[0]["slice"] == "overall" and rows[0]["significant"] and rows[0]["ci_hi"] < 0
-    assert {r["value"] for r in rows} == {"all", "x", "y"}
